@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "50mb", "includeFiles": "*.py" }
+    },
+    {
+      "src": "api/process_job.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "50mb", "includeFiles": "*.py" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/process-job", "dest": "api/process_job.py" },
+    { "src": "/(.*)", "dest": "api/index.py" }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30
+    },
+    "api/process_job.py": {
+      "maxDuration": 300
+    }
+  }
+}
