@@ -153,7 +153,7 @@ app.add_middleware(RequestIdMiddleware)
 # Pillar 10 — CORS restricted exclusively to the configured system domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins_list(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Turnstile-Token"],

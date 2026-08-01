@@ -148,7 +148,7 @@ CREATE TRIGGER trg_webinars_updated_at
 --    Reads the active organization_id off the verified Supabase JWT
 --    (`request.jwt.claims` is populated by PostgREST/Supabase's auth layer per request).
 -- ------------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION auth.get_active_tenant_company_id()
+CREATE OR REPLACE FUNCTION intel_core.get_active_tenant_company_id()
 RETURNS UUID
 LANGUAGE sql
 STABLE
@@ -161,7 +161,7 @@ AS $$
     )::uuid;
 $$;
 
-COMMENT ON FUNCTION auth.get_active_tenant_company_id() IS
+COMMENT ON FUNCTION intel_core.get_active_tenant_company_id() IS
     'Extracts organization_id from the verified request.jwt.claims context set per-connection by the auth layer. Returns NULL for unauthenticated/service-role sessions, which RLS policies below treat as "deny".';
 
 -- ------------------------------------------------------------------------------------
@@ -180,12 +180,12 @@ ALTER TABLE intel_core.semantic_metrics FORCE ROW LEVEL SECURITY;
 -- companies: a tenant may only ever see/modify its own row
 DROP POLICY IF EXISTS companies_select ON intel_core.companies;
 CREATE POLICY companies_select ON intel_core.companies
-    FOR SELECT USING (id = auth.get_active_tenant_company_id());
+    FOR SELECT USING (id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS companies_update ON intel_core.companies;
 CREATE POLICY companies_update ON intel_core.companies
-    FOR UPDATE USING (id = auth.get_active_tenant_company_id())
-               WITH CHECK (id = auth.get_active_tenant_company_id());
+    FOR UPDATE USING (id = intel_core.get_active_tenant_company_id())
+               WITH CHECK (id = intel_core.get_active_tenant_company_id());
 
 -- Inserts/deletes on companies are intentionally NOT exposed to tenant JWTs;
 -- only the service-role key (which bypasses RLS) may provision/deprovision tenants.
@@ -193,56 +193,56 @@ CREATE POLICY companies_update ON intel_core.companies
 -- webinars: full CRUD matrix scoped to organization_id
 DROP POLICY IF EXISTS webinars_select ON intel_core.webinars;
 CREATE POLICY webinars_select ON intel_core.webinars
-    FOR SELECT USING (company_id = auth.get_active_tenant_company_id());
+    FOR SELECT USING (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS webinars_insert ON intel_core.webinars;
 CREATE POLICY webinars_insert ON intel_core.webinars
-    FOR INSERT WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR INSERT WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS webinars_update ON intel_core.webinars;
 CREATE POLICY webinars_update ON intel_core.webinars
-    FOR UPDATE USING (company_id = auth.get_active_tenant_company_id())
-               WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR UPDATE USING (company_id = intel_core.get_active_tenant_company_id())
+               WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS webinars_delete ON intel_core.webinars;
 CREATE POLICY webinars_delete ON intel_core.webinars
-    FOR DELETE USING (company_id = auth.get_active_tenant_company_id());
+    FOR DELETE USING (company_id = intel_core.get_active_tenant_company_id());
 
 -- summaries: full CRUD matrix scoped to organization_id
 DROP POLICY IF EXISTS summaries_select ON intel_core.summaries;
 CREATE POLICY summaries_select ON intel_core.summaries
-    FOR SELECT USING (company_id = auth.get_active_tenant_company_id());
+    FOR SELECT USING (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS summaries_insert ON intel_core.summaries;
 CREATE POLICY summaries_insert ON intel_core.summaries
-    FOR INSERT WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR INSERT WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS summaries_update ON intel_core.summaries;
 CREATE POLICY summaries_update ON intel_core.summaries
-    FOR UPDATE USING (company_id = auth.get_active_tenant_company_id())
-               WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR UPDATE USING (company_id = intel_core.get_active_tenant_company_id())
+               WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS summaries_delete ON intel_core.summaries;
 CREATE POLICY summaries_delete ON intel_core.summaries
-    FOR DELETE USING (company_id = auth.get_active_tenant_company_id());
+    FOR DELETE USING (company_id = intel_core.get_active_tenant_company_id());
 
 -- semantic_metrics: full CRUD matrix scoped to organization_id
 DROP POLICY IF EXISTS semantic_metrics_select ON intel_core.semantic_metrics;
 CREATE POLICY semantic_metrics_select ON intel_core.semantic_metrics
-    FOR SELECT USING (company_id = auth.get_active_tenant_company_id());
+    FOR SELECT USING (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS semantic_metrics_insert ON intel_core.semantic_metrics;
 CREATE POLICY semantic_metrics_insert ON intel_core.semantic_metrics
-    FOR INSERT WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR INSERT WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS semantic_metrics_update ON intel_core.semantic_metrics;
 CREATE POLICY semantic_metrics_update ON intel_core.semantic_metrics
-    FOR UPDATE USING (company_id = auth.get_active_tenant_company_id())
-               WITH CHECK (company_id = auth.get_active_tenant_company_id());
+    FOR UPDATE USING (company_id = intel_core.get_active_tenant_company_id())
+               WITH CHECK (company_id = intel_core.get_active_tenant_company_id());
 
 DROP POLICY IF EXISTS semantic_metrics_delete ON intel_core.semantic_metrics;
 CREATE POLICY semantic_metrics_delete ON intel_core.semantic_metrics
-    FOR DELETE USING (company_id = auth.get_active_tenant_company_id());
+    FOR DELETE USING (company_id = intel_core.get_active_tenant_company_id());
 
 -- ------------------------------------------------------------------------------------
 -- 9. ATOMIC increment_semantic_metric()
@@ -301,7 +301,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = intel_core, pg_catalog
+SET search_path = intel_core, public, pg_catalog
 AS $$
     SELECT
         s.id,
@@ -335,7 +335,7 @@ BEGIN
 END;
 $$;
 
-DO $$
+DO $do$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM cron.job WHERE jobname = 'intel_core_monthly_quota_reset'
@@ -343,9 +343,9 @@ BEGIN
         PERFORM cron.schedule(
             'intel_core_monthly_quota_reset',
             '0 0 1 * *',
-            $$SELECT intel_core.reset_monthly_usage();$$
+            $cron$SELECT intel_core.reset_monthly_usage();$cron$
         );
     END IF;
-END $$;
+END $do$;
 
 COMMIT;

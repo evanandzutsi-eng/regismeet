@@ -7,7 +7,7 @@ and main.py DTO boundaries for the enforcement of that rule (Pillar 7).
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field, AnyHttpUrl, field_validator, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: int = 1536
 
+    # Optional self-hosted overrides. When set, ai_summarizer.py points its
+    # OpenAI-SDK clients at these instead of api.openai.com — this works
+    # because self-hosted servers like faster-whisper-server and Infinity
+    # (michaelfeil/infinity) both expose OpenAI-API-compatible endpoints, so
+    # no client-code rewrite is needed, just a different base_url + key.
+    # Leave unset to keep using OpenAI directly.
+    WHISPER_BASE_URL: Optional[AnyHttpUrl] = None
+    WHISPER_API_KEY: Optional[SecretStr] = None
+    EMBEDDING_BASE_URL: Optional[AnyHttpUrl] = None
+    EMBEDDING_API_KEY: Optional[SecretStr] = None
+
     # ------------------------------------------------------------------ Paystack
     PAYSTACK_SECRET_KEY: SecretStr
     PAYSTACK_PUBLIC_KEY: str
@@ -75,7 +86,11 @@ class Settings(BaseSettings):
     TURNSTILE_VERIFY_URL: AnyHttpUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
     # ------------------------------------------------------------------ CORS / network hardening
-    ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: ["https://app.meetingintel.example.com"])
+    # Stored as a plain comma-separated string on purpose: pydantic-settings only
+    # attempts JSON-decoding on "complex" types (list/dict/etc.), never on str,
+    # so this sidesteps that entirely rather than fighting it. Use
+    # allowed_origins_list() below wherever an actual list is needed.
+    ALLOWED_ORIGINS: str = Field(default="https://app.meetingintel.example.com")
     MAX_REQUEST_BODY_BYTES: int = 25 * 1024 * 1024  # 25 MB hard ceiling
     ALLOWED_AUDIO_EXTENSIONS: List[str] = Field(default_factory=lambda: [".mp3", ".wav"])
     ALLOWED_AUDIO_MIME_TYPES: List[str] = Field(
@@ -91,12 +106,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ Temp storage (Pillar 1: purge on completion)
     TEMP_AUDIO_DIR: str = "/tmp/meeting-intel-ingest"
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def _split_csv_origins(cls, value):
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+    def allowed_origins_list(self) -> List[str]:
+        """Splits the comma-separated ALLOWED_ORIGINS string into a clean list."""
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     @field_validator("ENVIRONMENT")
     @classmethod
