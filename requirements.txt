@@ -9,3 +9,4 @@ openai==1.51.0
 google-generativeai==0.8.3
 upstash-redis==1.2.0
 qstash==2.0.4
+email-validator==2.2.0
