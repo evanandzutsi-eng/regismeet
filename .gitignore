@@ -1,4 +1,5 @@
 # Environment & secrets
+.env.vercel.check
 .env
 .env.local
 *.env

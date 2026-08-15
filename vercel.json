@@ -1,20 +1,8 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "50mb", "includeFiles": "*.py" }
-    },
-    {
-      "src": "api/process_job.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "50mb", "includeFiles": "*.py" }
-    }
-  ],
-  "routes": [
-    { "src": "/api/process-job", "dest": "api/process_job.py" },
-    { "src": "/(.*)", "dest": "api/index.py" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/process-job", "destination": "/api/process_job" },
+    { "source": "/(.*)", "destination": "/api/index" }
   ],
   "functions": {
     "api/index.py": {
