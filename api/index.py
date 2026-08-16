@@ -180,6 +180,14 @@ async def sanitized_exception_handler(request: Request, exc: Exception):
         },
     )
 
+@app.get("/", tags=["system"])
+async def welcome():
+    return {
+        "service": settings.SERVICE_NAME,
+        "status": "online",
+        "message": "REGISMEET API — this is a backend service, not a webpage.",
+        "health_check": "/healthz",
+    }
 
 @app.get("/healthz", tags=["system"])
 async def health_check():
